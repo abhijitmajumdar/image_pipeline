@@ -1,15 +1,18 @@
 cmake_minimum_required(VERSION 2.8)
 project(depth_image_proc)
 
-find_package(catkin REQUIRED cmake_modules cv_bridge eigen_conversions image_geometry image_transport message_filters nodelet sensor_msgs stereo_msgs tf2 tf2_ros)
+find_package(catkin REQUIRED cmake_modules cv_bridge eigen_conversions image_geometry image_transport message_filters nodelet sensor_msgs stereo_msgs tf2 tf2_ros dynamic_reconfigure)
 
 if(cv_bridge_VERSION VERSION_GREATER "1.12.0")
   add_compile_options(-std=c++11)
 endif()
 
+generate_dynamic_reconfigure_options(cfg/Trigger.cfg)
+
 catkin_package(
     INCLUDE_DIRS include
-    LIBRARIES ${PROJECT_NAME})
+    LIBRARIES ${PROJECT_NAME}
+    CATKIN_DEPENDS dynamic_reconfigure)
 
 find_package(Boost REQUIRED)
 find_package(Eigen3 QUIET)
@@ -31,6 +34,7 @@ add_library(${PROJECT_NAME} src/nodelets/convert_metric.cpp
                              src/nodelets/register.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 install(DIRECTORY include/${PROJECT_NAME}/
     DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}

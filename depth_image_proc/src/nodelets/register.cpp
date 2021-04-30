@@ -46,6 +46,13 @@
 #include <eigen_conversions/eigen_msg.h>
 #include <depth_image_proc/depth_traits.h>
 
+#include <dynamic_reconfigure/server.h>
+#include <dynamic_reconfigure/Reconfigure.h>
+#include <dynamic_reconfigure/DoubleParameter.h>
+#include <dynamic_reconfigure/Config.h>
+
+#include <depth_image_proc/TriggerConfig.h>
+
 namespace depth_image_proc {
 
 using namespace message_filters::sync_policies;
@@ -73,6 +80,9 @@ class RegisterNodelet : public nodelet::Nodelet
 
   // Parameters
   bool fill_upsampling_holes_;	// fills holes which occur due to upsampling by scaling each pixel to the target image scale (only takes effect on upsampling)
+  boost::shared_ptr<dynamic_reconfigure::Server<depth_image_proc::TriggerConfig> > reconfigurer_;
+  void updateParameters(depth_image_proc::TriggerConfig& config, uint32_t level);
+  depth_image_proc::TriggerConfig config_;
 
   virtual void onInit();
 
@@ -116,6 +126,14 @@ void RegisterNodelet::onInit()
   pub_registered_ = it_depth_reg.advertiseCamera("image_rect", 1,
                                                  image_connect_cb, image_connect_cb,
                                                  info_connect_cb, info_connect_cb);
+
+  reconfigurer_ = boost::make_shared<dynamic_reconfigure::Server<depth_image_proc::TriggerConfig> >(private_nh);
+  reconfigurer_->setCallback(boost::bind(&RegisterNodelet::updateParameters, this, _1, _2));
+}
+
+void RegisterNodelet::updateParameters(depth_image_proc::TriggerConfig& config, uint32_t level)
+{
+  config_ = config;
 }
 
 // Handles (un)subscribing when clients (un)subscribe
@@ -152,6 +170,34 @@ void RegisterNodelet::imageCb(const sensor_msgs::ImageConstPtr& depth_image_msg,
     geometry_msgs::TransformStamped transform = tf_buffer_->lookupTransform (
                           rgb_info_msg->header.frame_id, depth_info_msg->header.frame_id,
                           depth_info_msg->header.stamp);
+
+    if (config_.modified_extrinsic)
+    {
+      auto tf_transform  = transform.transform; // cache for debugging
+      transform.transform.translation.x = config_.x;
+      transform.transform.translation.y = config_.y;
+      transform.transform.translation.z = config_.z;
+      transform.transform.rotation.x = config_.rx;
+      transform.transform.rotation.y = config_.ry;
+      transform.transform.rotation.z = config_.rz;
+      transform.transform.rotation.w = config_.rw;
+
+      ROS_DEBUG_STREAM_THROTTLE(10.0, "modified (x,y,z,rx,ry,rz,rw): " << transform.transform.translation.x << ", "
+                                                                      << transform.transform.translation.y << ", "
+                                                                      << transform.transform.translation.z << ", "
+                                                                      << transform.transform.rotation.x << ", "
+                                                                      << transform.transform.rotation.y << ", "
+                                                                      << transform.transform.rotation.z << ", "
+                                                                      << transform.transform.rotation.w
+                                                                      << "original (x,y,z,rx,ry,rz,rw): "
+                                                                      << tf_transform.translation.x << ", "
+                                                                      << tf_transform.translation.y << ", "
+                                                                      << tf_transform.translation.z << ", "
+                                                                      << tf_transform.rotation.x << ", "
+                                                                      << tf_transform.rotation.y << ", "
+                                                                      << tf_transform.rotation.z << ", "
+                                                                      << tf_transform.rotation.w);
+    }
 
     tf::transformMsgToEigen(transform.transform, depth_to_rgb);
   }
