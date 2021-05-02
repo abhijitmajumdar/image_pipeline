@@ -171,9 +171,9 @@ void RegisterNodelet::imageCb(const sensor_msgs::ImageConstPtr& depth_image_msg,
                           rgb_info_msg->header.frame_id, depth_info_msg->header.frame_id,
                           depth_info_msg->header.stamp);
 
-    if (config_.modified_extrinsic)
+    if (config_.override_extrinsic)
     {
-      auto tf_transform  = transform.transform; // cache for debugging
+      auto original_transform  = transform.transform; // cache for debugging
       transform.transform.translation.x = config_.x;
       transform.transform.translation.y = config_.y;
       transform.transform.translation.z = config_.z;
@@ -182,21 +182,23 @@ void RegisterNodelet::imageCb(const sensor_msgs::ImageConstPtr& depth_image_msg,
       transform.transform.rotation.z = config_.rz;
       transform.transform.rotation.w = config_.rw;
 
-      ROS_DEBUG_STREAM_THROTTLE(10.0, "modified (x,y,z,rx,ry,rz,rw): " << transform.transform.translation.x << ", "
-                                                                      << transform.transform.translation.y << ", "
-                                                                      << transform.transform.translation.z << ", "
-                                                                      << transform.transform.rotation.x << ", "
-                                                                      << transform.transform.rotation.y << ", "
-                                                                      << transform.transform.rotation.z << ", "
-                                                                      << transform.transform.rotation.w
-                                                                      << "original (x,y,z,rx,ry,rz,rw): "
-                                                                      << tf_transform.translation.x << ", "
-                                                                      << tf_transform.translation.y << ", "
-                                                                      << tf_transform.translation.z << ", "
-                                                                      << tf_transform.rotation.x << ", "
-                                                                      << tf_transform.rotation.y << ", "
-                                                                      << tf_transform.rotation.z << ", "
-                                                                      << tf_transform.rotation.w);
+      ROS_DEBUG_STREAM_THROTTLE(10.0,
+                                "original (x,y,z,rx,ry,rz,rw): ("
+                                    << original_transform.translation.x << ", "
+                                    << original_transform.translation.y << ", "
+                                    << original_transform.translation.z << ", "
+                                    << original_transform.rotation.x << ", "
+                                    << original_transform.rotation.y << ", "
+                                    << original_transform.rotation.z << ", "
+                                    << original_transform.rotation.w
+                                    << ")\tmodified (x,y,z,rx,ry,rz,rw): ("
+                                    << transform.transform.translation.x << ", "
+                                    << transform.transform.translation.y << ", "
+                                    << transform.transform.translation.z << ", "
+                                    << transform.transform.rotation.x << ", "
+                                    << transform.transform.rotation.y << ", "
+                                    << transform.transform.rotation.z << ", "
+                                    << transform.transform.rotation.w << ")");
     }
 
     tf::transformMsgToEigen(transform.transform, depth_to_rgb);
